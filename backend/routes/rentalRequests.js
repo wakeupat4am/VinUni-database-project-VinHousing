@@ -18,3 +18,4 @@ router.put('/:id/status', authenticate, rentalRequestController.updateRentalRequ
 module.exports = router;
 
 
+

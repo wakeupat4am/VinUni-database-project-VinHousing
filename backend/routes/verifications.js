@@ -18,3 +18,4 @@ router.put('/:id', authenticate, authorize('admin'), verificationController.upda
 module.exports = router;
 
 
+
