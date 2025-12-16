@@ -27,3 +27,4 @@ router.post('/:id/rooms', authenticate, propertyController.createRoomValidation,
 module.exports = router;
 
 
+

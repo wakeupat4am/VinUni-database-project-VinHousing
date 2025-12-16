@@ -10,3 +10,4 @@ router.get('/profile', authenticate, authController.getProfile);
 module.exports = router;
 
 
+

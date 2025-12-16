@@ -21,3 +21,4 @@ router.put('/affiliations/:user_id/:org_id', authenticate, authorize('admin'), o
 module.exports = router;
 
 
+
