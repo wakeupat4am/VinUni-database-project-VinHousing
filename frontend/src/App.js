@@ -17,7 +17,15 @@ import TenantDashboard from './pages/tenant/TenantDashboard';
 // Placeholder Components (You will build these next)
 // const TenantDashboard = () => <h1>Tenant Dashboard</h1>;
 // const LandlordDashboard = () => <h1>Landlord Dashboard</h1>;
-const AdminDashboard = () => <h1>Admin Dashboard</h1>;
+import AdminDashboard from './pages/admin/AdminDashboard';
+import VerificationList from './pages/admin/VerificationList';
+import UserManagement from './pages/admin/UserManagement';
+
+// Simple Dashboard Placeholder
+// Placeholder Components (You will build these next)
+// const TenantDashboard = () => <h1>Tenant Dashboard</h1>;
+// const LandlordDashboard = () => <h1>Landlord Dashboard</h1>;
+// const AdminDashboard = () => <h1>Admin Dashboard</h1>;
 
 const ContractList = () => <h1>My Contracts</h1>;
 
@@ -73,7 +81,9 @@ function App() {
         {/* ADMIN ROUTES (Role: admin) */}
         <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
-          <Route path="/admin/verifications" element={<h1>Verifications</h1>} />
+          <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
+          <Route path="/admin/verifications" element={<VerificationList />} />
+          <Route path="/admin/users" element={<UserManagement />} />
         </Route>
 
         {/* Default Redirect */}

@@ -96,4 +96,26 @@ export const issueService = {
   updateStatus: (id, status) => api.put(`/issues/${id}/status`, { status }),
 };
 
+// --- VERIFICATION SERVICE ---
+export const verificationService = {
+  getAll: (params) => api.get('/verifications', { params }),
+  getById: (id) => api.get(`/verifications/${id}`),
+  create: (data) => api.post('/verifications', data),
+  update: (id, data) => api.put(`/verifications/${id}`, data),
+};
+
+// --- USER SERVICE ---
+export const userService = {
+  getAll: (params) => api.get('/users', { params }),
+  getById: (id) => api.get(`/users/${id}`),
+  updateStatus: (id, status) => api.put(`/users/${id}/status`, { status }),
+};
+
+// --- ORGANIZATION SERVICE ---
+export const organizationService = {
+  getAll: () => api.get('/organizations'),
+  create: (data) => api.post('/organizations', data),
+  updateAffiliation: (userId, orgId, status) => api.put(`/organizations/affiliations/${userId}/${orgId}`, { status }),
+};
+
 export default api;

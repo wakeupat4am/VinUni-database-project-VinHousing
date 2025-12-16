@@ -151,7 +151,7 @@ CREATE TABLE listings (
   CONSTRAINT ck_listing_target CHECK ( (property_id IS NULL) <> (room_id IS NULL) ),
 
   CONSTRAINT ck_listing_status CHECK (status IN (
-    'pending_verification','verified','rejected','available','reserved','rented','inactive'
+    '','verified','rejected','available','reserved','rented','inactive'
   ))
 ) ENGINE=InnoDB;
 
