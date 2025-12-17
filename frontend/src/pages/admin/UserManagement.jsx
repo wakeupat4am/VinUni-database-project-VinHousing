@@ -91,7 +91,7 @@ export default function UserManagement() {
                                                     size="small"
                                                     color="error"
                                                     startIcon={<BlockIcon />}
-                                                    onClick={() => handleStatusChange(user.id, 'inactive')}
+                                                    onClick={() => handleStatusChange(user.id, 'suspended')}
                                                 >
                                                     Deactivate
                                                 </Button>
