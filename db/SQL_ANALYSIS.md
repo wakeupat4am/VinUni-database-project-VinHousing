@@ -283,3 +283,4 @@ INSERT INTO users (email, password_hash, full_name, role, status) VALUES
 4. **Test all SQL files** - Ensure they run without errors
 5. **Document procedures/triggers** - Explain what each does
 
+
