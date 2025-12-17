@@ -2,10 +2,13 @@ const pool = require('../config/database');
 const { body, validationResult } = require('express-validator');
 
 // Get all users (admin only)
+// Get all users (admin only)
 const getUsers = async (req, res, next) => {
   try {
     const { role, status, page = 1, limit = 20 } = req.query;
-    const offset = (page - 1) * limit;
+    const limitNum = parseInt(limit, 10);
+    const pageNum = parseInt(page, 10);
+    const offset = (pageNum - 1) * limitNum;
 
     let query = 'SELECT id, email, full_name, phone, role, status, created_at, updated_at FROM users WHERE 1=1';
     const params = [];
@@ -21,9 +24,10 @@ const getUsers = async (req, res, next) => {
     }
 
     query += ' ORDER BY created_at DESC LIMIT ? OFFSET ?';
-    params.push(parseInt(limit), offset);
+    params.push(limitNum, offset);
 
-    const [users] = await pool.execute(query, params);
+    // Use pool.query instead of pool.execute to avoid issues with LIMIT/OFFSET in prepared statements
+    const [users] = await pool.query(query, params);
 
     // Get total count
     let countQuery = 'SELECT COUNT(*) as total FROM users WHERE 1=1';
@@ -36,15 +40,15 @@ const getUsers = async (req, res, next) => {
       countQuery += ' AND status = ?';
       countParams.push(status);
     }
-    const [countResult] = await pool.execute(countQuery, countParams);
+    const [countResult] = await pool.query(countQuery, countParams);
 
     res.json({
       users,
       pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
+        page: pageNum,
+        limit: limitNum,
         total: countResult[0].total,
-        pages: Math.ceil(countResult[0].total / limit)
+        pages: Math.ceil(countResult[0].total / limitNum)
       }
     });
   } catch (error) {

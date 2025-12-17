@@ -2,10 +2,13 @@ const pool = require('../config/database');
 const { body, validationResult } = require('express-validator');
 
 // Get all contracts
+// Get all contracts
 const getContracts = async (req, res, next) => {
   try {
     const { landlord_id, tenant_id, status, page = 1, limit = 20 } = req.query;
-    const offset = (page - 1) * limit;
+    const limitNum = parseInt(limit, 10);
+    const pageNum = parseInt(page, 10);
+    const offset = (pageNum - 1) * limitNum;
 
     let query = `
       SELECT c.*, 
@@ -45,9 +48,9 @@ const getContracts = async (req, res, next) => {
     }
 
     query += ' ORDER BY c.created_at DESC LIMIT ? OFFSET ?';
-    params.push(parseInt(limit), offset);
+    params.push(limitNum, offset);
 
-    const [contracts] = await pool.execute(query, params);
+    const [contracts] = await pool.query(query, params);
 
     // Get tenants for each contract
     for (let contract of contracts) {

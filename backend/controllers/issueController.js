@@ -2,10 +2,13 @@ const pool = require('../config/database');
 const { body, validationResult } = require('express-validator');
 
 // Get all issue reports
+// Get all issue reports
 const getIssues = async (req, res, next) => {
   try {
     const { contract_id, status, category, severity, page = 1, limit = 20 } = req.query;
-    const offset = (page - 1) * limit;
+    const limitNum = parseInt(limit, 10);
+    const pageNum = parseInt(page, 10);
+    const offset = (pageNum - 1) * limitNum;
 
     let query = `
       SELECT ir.*,
@@ -50,9 +53,9 @@ const getIssues = async (req, res, next) => {
     }
 
     query += ' ORDER BY ir.created_at DESC LIMIT ? OFFSET ?';
-    params.push(parseInt(limit), offset);
+    params.push(limitNum, offset);
 
-    const [issues] = await pool.execute(query, params);
+    const [issues] = await pool.query(query, params);
 
     res.json({ issues });
   } catch (error) {
