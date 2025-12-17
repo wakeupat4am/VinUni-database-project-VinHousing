@@ -43,8 +43,8 @@ export default function ListingDetail() {
 
       await requestService.create({
         listing_id: listing.id,
-        desired_move_in: listing.available_from,
-        message: "I am interested in this place. Please contact me."
+        message: "I am interested in this place. Please contact me.",
+        desired_move_in: listing.available_from
       });
 
       alert("Request Sent! The landlord will review it.");

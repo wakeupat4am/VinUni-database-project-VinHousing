@@ -6,91 +6,52 @@ const { body, validationResult } = require('express-validator');
 const getListings = async (req, res, next) => {
   try {
     const {
-      status,
-      property_id,
-      room_id,
-      owner_id,
-      min_price,
-      max_price,
-      available_from,
-      page = 1,
-      limit = 20
+      status, property_id, room_id, owner_id, 
+      min_price, max_price, page = 1, limit = 20
     } = req.query;
 
-    // 1. ✅ Force Integer Conversion (The Fix)
     const limitNum = parseInt(limit, 10);
     const offsetNum = (parseInt(page, 10) - 1) * limitNum;
 
-    let query = `
-      SELECT l.*, 
-             u.full_name as owner_name,
-             p.address as property_address,
-             r.room_name,
-             lf.features_json
-      FROM listings l
-      LEFT JOIN users u ON l.owner_user_id = u.id
-      LEFT JOIN properties p ON l.property_id = p.id
-      LEFT JOIN rooms r ON l.room_id = r.id
-      LEFT JOIN listing_features lf ON l.id = lf.listing_id
-      WHERE 1=1
-    `;
+    // ✅ THE CHANGE: Select from the View 'v_searchable_listings" 
+    // instead of complex Joins
+    let query = `SELECT * FROM v_searchable_listings WHERE 1=1`;
     const params = [];
 
+    // --- FILTERS (Now much cleaner) ---
     if (status) {
-      query += ' AND l.status = ?';
+      query += ' AND status = ?';
       params.push(status);
     }
-
-    if (property_id) {
-      query += ' AND l.property_id = ?';
-      params.push(property_id);
-    }
-
-    if (room_id) {
-      query += ' AND l.room_id = ?';
-      params.push(room_id);
-    }
-
+    
+    // Filter by Owner (for "My Listings" dashboard)
     if (owner_id) {
-      query += ' AND l.owner_user_id = ?';
+      query += ' AND owner_user_id = ?';
       params.push(owner_id);
     }
 
     if (min_price) {
-      query += ' AND l.price >= ?';
+      query += ' AND price >= ?';
       params.push(min_price);
     }
 
     if (max_price) {
-      query += ' AND l.price <= ?';
+      query += ' AND price <= ?';
       params.push(max_price);
     }
 
-    if (available_from) {
-      query += ' AND l.available_from <= ?';
-      params.push(available_from);
-    }
-
-    query += ' ORDER BY l.created_at DESC LIMIT ? OFFSET ?';
-    
-    // 2. ✅ Push the Numbers
+    // --- SORTING & PAGINATION ---
+    query += ' ORDER BY created_at DESC LIMIT ? OFFSET ?';
     params.push(limitNum, offsetNum);
 
-    // 3. ✅ Use pool.query (Safer for LIMIT/OFFSET)
     const [listings] = await pool.query(query, params);
 
-    // Parse JSON features
-    listings.forEach(listing => {
-      if (listing.features_json) {
-        // Handle double-stringified JSON if necessary, or just parse
+    // Parse JSON features (same as before)
+    listings.forEach(l => {
         try {
-          listing.features_json = typeof listing.features_json === 'string' 
-            ? JSON.parse(listing.features_json) 
-            : listing.features_json;
-        } catch (e) {
-          listing.features_json = {};
-        }
-      }
+            l.features_json = typeof l.features_json === 'string' 
+                ? JSON.parse(l.features_json) : l.features_json || {};
+        } catch(e) { l.features_json = {}; }
     });
 
     res.json({ listings });
