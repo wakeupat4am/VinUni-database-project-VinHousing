@@ -111,9 +111,10 @@ const createListing = async (req, res, next) => {
       return res.status(400).json({ error: 'Either property_id or room_id must be provided.' });
     }
 
-    if (property_id && room_id) {
-      return res.status(400).json({ error: 'Cannot specify both property_id and room_id.' });
-    }
+    //strict mode: prevent both being provided
+    // if (property_id && room_id) {
+    //   return res.status(400).json({ error: 'Cannot specify both property_id and room_id.' });
+    // }
 
     // Verify ownership if room_id is provided
     if (room_id) {
@@ -149,7 +150,7 @@ const createListing = async (req, res, next) => {
 
     const [result] = await pool.execute(
       'INSERT INTO listings (owner_user_id, property_id, room_id, price, deposit, available_from, status) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [owner_user_id, property_id || null, room_id || null, price, deposit || 0, available_from || null, 'pending_verification']
+      [owner_user_id, property_id, room_id || null, price, deposit || 0, available_from || null, 'pending_verification']
     );
 
     // Create listing features if provided
