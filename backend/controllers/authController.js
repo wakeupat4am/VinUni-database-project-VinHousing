@@ -64,6 +64,7 @@ const login = async (req, res, next) => {
     }
 
     const { email, password } = req.body;
+    console.log("Login Attempt:", email);
 
     // Find user
     const [users] = await pool.execute(
@@ -72,10 +73,13 @@ const login = async (req, res, next) => {
     );
 
     if (users.length === 0) {
+      console.log("❌ User not found in DB");
       return res.status(401).json({ error: 'Invalid email or password.' });
     }
 
     const user = users[0];
+    console.log("✅ User found:", user.email); 
+    console.log("🔑 Hash in DB:", user.password_hash);
 
     // Check if account is active
     if (user.status !== 'active') {
@@ -84,6 +88,7 @@ const login = async (req, res, next) => {
 
     // Verify password
     const isValidPassword = await bcrypt.compare(password, user.password_hash);
+    console.log("Password Match Result:", isValidPassword);
     if (!isValidPassword) {
       return res.status(401).json({ error: 'Invalid email or password.' });
     }
@@ -138,8 +143,8 @@ const registerValidation = [
 ];
 
 const loginValidation = [
-  body('email').isEmail().normalizeEmail(),
-  body('password').notEmpty().withMessage('Password is required')
+  body('email').isEmail(),
+  body('password').trim().notEmpty().withMessage('Password is required')
 ];
 
 module.exports = {

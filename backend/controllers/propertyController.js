@@ -94,12 +94,12 @@ const createProperty = async (req, res, next) => {
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { address, geo_lat, geo_lng, description, org_id } = req.body;
+    const { address, geo_lat, geo_lng, description, org_id, image_url} = req.body;
     const owner_user_id = req.user.id;
 
     const [result] = await pool.execute(
-      'INSERT INTO properties (owner_user_id, org_id, address, geo_lat, geo_lng, description) VALUES (?, ?, ?, ?, ?, ?)',
-      [owner_user_id, org_id || null, address, geo_lat || null, geo_lng || null, description || null]
+      'INSERT INTO properties (owner_user_id, org_id, address, geo_lat, geo_lng, description, image_url) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [owner_user_id, org_id || null, address, geo_lat || null, geo_lng || null, description || null, image_url || null]
     );
 
     const [properties] = await pool.execute(
@@ -117,7 +117,7 @@ const createProperty = async (req, res, next) => {
 const updateProperty = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { address, geo_lat, geo_lng, description, org_id } = req.body;
+    const { address, geo_lat, geo_lng, description, org_id, image_url} = req.body;
 
     // Check ownership
     const [properties] = await pool.execute(
@@ -134,8 +134,8 @@ const updateProperty = async (req, res, next) => {
     }
 
     await pool.execute(
-      'UPDATE properties SET address = ?, geo_lat = ?, geo_lng = ?, description = ?, org_id = ? WHERE id = ?',
-      [address, geo_lat || null, geo_lng || null, description || null, org_id || null, id]
+      'UPDATE properties SET address = ?, geo_lat = ?, geo_lng = ?, description = ?, org_id = ?, image_url = ? WHERE id = ?',
+      [address, geo_lat || null, geo_lng || null, description || null, org_id || null, image_url || null, id]
     );
 
     const [updated] = await pool.execute(
@@ -270,7 +270,8 @@ const createPropertyValidation = [
   body('address').trim().isLength({ min: 1 }).withMessage('Address is required'),
   body('geo_lat').optional().isFloat(),
   body('geo_lng').optional().isFloat(),
-  body('description').optional().trim()
+  body('description').optional().trim(),
+  body('image_url').optional().isString()
 ];
 
 const createRoomValidation = [
