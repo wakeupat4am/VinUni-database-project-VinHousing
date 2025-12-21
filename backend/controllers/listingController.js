@@ -13,48 +13,37 @@ const getListings = async (req, res, next) => {
     const limitNum = parseInt(limit, 10);
     const offsetNum = (parseInt(page, 10) - 1) * limitNum;
 
-    // ✅ THE CHANGE: Select from the View 'v_searchable_listings" 
-    // instead of complex Joins
-    let query = `SELECT * FROM v_searchable_listings WHERE 1=1`;
+    // 1. Build Base Conditions (Shared by both queries)
+    let baseSql = ' FROM v_searchable_listings WHERE 1=1'; // Using your View
     const params = [];
 
-    // --- FILTERS (Now much cleaner) ---
-    if (status) {
-      query += ' AND status = ?';
-      params.push(status);
-    }
-    
-    // Filter by Owner (for "My Listings" dashboard)
-    if (owner_id) {
-      query += ' AND owner_user_id = ?';
-      params.push(owner_id);
-    }
+    if (status) { baseSql += ' AND status = ?'; params.push(status); }
+    if (owner_id) { baseSql += ' AND owner_user_id = ?'; params.push(owner_id); }
+    if (min_price) { baseSql += ' AND price >= ?'; params.push(min_price); }
+    if (max_price) { baseSql += ' AND price <= ?'; params.push(max_price); }
 
-    if (min_price) {
-      query += ' AND price >= ?';
-      params.push(min_price);
-    }
+    // 2. Fetch Data (With Pagination)
+    const dataQuery = `SELECT * ${baseSql} ORDER BY created_at DESC LIMIT ? OFFSET ?`;
+    const dataParams = [...params, limitNum, offsetNum];
+    const [listings] = await pool.query(dataQuery, dataParams);
 
-    if (max_price) {
-      query += ' AND price <= ?';
-      params.push(max_price);
-    }
+    // 3. ✅ NEW: Fetch Total Count (Ignoring Pagination)
+    // This runs a fast count without downloading the rows
+    const countQuery = `SELECT COUNT(*) as total ${baseSql}`;
+    const [countResult] = await pool.query(countQuery, params);
+    const total = countResult[0].total;
 
-    // --- SORTING & PAGINATION ---
-    query += ' ORDER BY created_at DESC LIMIT ? OFFSET ?';
-    params.push(limitNum, offsetNum);
-
-    const [listings] = await pool.query(query, params);
-
-    // Parse JSON features (same as before)
-    listings.forEach(l => {
-        try {
-            l.features_json = typeof l.features_json === 'string' 
-                ? JSON.parse(l.features_json) : l.features_json || {};
-        } catch(e) { l.features_json = {}; }
+    // 4. Return Data + Total
+    res.json({ 
+        listings, 
+        total, // <--- Now the frontend can read this!
+        pagination: {
+            page: parseInt(page, 10),
+            limit: limitNum,
+            total: total,
+            pages: Math.ceil(total / limitNum)
+        }
     });
-
-    res.json({ listings });
   } catch (error) {
     next(error);
   }

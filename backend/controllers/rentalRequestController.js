@@ -53,7 +53,7 @@ const getRentalRequests = async (req, res, next) => {
     // 3. ✅ Fix: Use pool.query instead of pool.execute
     const [requests] = await pool.query(query, params);
 
-    res.json(requests);
+    res.json({ requests });
   } catch (error) {
     next(error);
   }

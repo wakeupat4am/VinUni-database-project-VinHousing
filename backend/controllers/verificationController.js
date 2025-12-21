@@ -10,36 +10,57 @@ const getVerifications = async (req, res, next) => {
     const pageNum = parseInt(page, 10);
     const offset = (pageNum - 1) * limitNum;
 
-    let query = `
-      SELECT v.*,
-             u.full_name as verifier_name
-      FROM verifications v
-      LEFT JOIN users u ON v.verifier_user_id = u.id
-      WHERE 1=1
-    `;
+    // 1. Base Query Logic
+    let baseConditions = ' WHERE 1=1';
     const params = [];
 
     if (target_type) {
-      query += ' AND v.target_type = ?';
+      baseConditions += ' AND v.target_type = ?';
       params.push(target_type);
     }
-
     if (target_id) {
-      query += ' AND v.target_id = ?';
+      baseConditions += ' AND v.target_id = ?';
       params.push(target_id);
     }
-
     if (status) {
-      query += ' AND v.status = ?';
+      baseConditions += ' AND v.status = ?';
       params.push(status);
     }
 
-    query += ' ORDER BY v.created_at DESC LIMIT ? OFFSET ?';
-    params.push(limitNum, offset);
+    // 2. Fetch Data (Paginated)
+    const dataQuery = `
+      SELECT v.*, u.full_name as verifier_name
+      FROM verifications v
+      LEFT JOIN users u ON v.verifier_user_id = u.id
+      ${baseConditions}
+      ORDER BY v.created_at DESC LIMIT ? OFFSET ?
+    `;
+    // Add pagination params to the data query params copy
+    const dataParams = [...params, limitNum, offset];
+    const [verifications] = await pool.query(dataQuery, dataParams);
 
-    const [verifications] = await pool.query(query, params);
+    // 3. ✅ NEW: Fetch Total Count (Ignoring Limit)
+    const countQuery = `
+      SELECT COUNT(*) as total 
+      FROM verifications v 
+      ${baseConditions}
+    `;
+    // Use original params (without limit/offset) for count
+    const [countResult] = await pool.query(countQuery, params);
+    const total = countResult[0].total;
 
-    res.json({ verifications });
+    // 4. Return both data and total
+    res.json({ 
+        verifications, 
+        total, // <--- The Dashboard needs this
+        pagination: {
+            page: pageNum,
+            limit: limitNum,
+            total: total,
+            pages: Math.ceil(total / limitNum)
+        }
+    });
+
   } catch (error) {
     next(error);
   }

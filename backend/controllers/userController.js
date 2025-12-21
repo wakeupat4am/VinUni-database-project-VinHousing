@@ -2,13 +2,11 @@ const pool = require('../config/database');
 const { body, validationResult } = require('express-validator');
 
 // Get all users (admin only)
-// Get all users (admin only)
 const getUsers = async (req, res, next) => {
   try {
     const { role, status, page = 1, limit = 20 } = req.query;
     const limitNum = parseInt(limit, 10);
-    const pageNum = parseInt(page, 10);
-    const offset = (pageNum - 1) * limitNum;
+    const offset = (page - 1) * limitNum;
 
     let query = 'SELECT id, email, full_name, phone, role, status, created_at, updated_at FROM users WHERE 1=1';
     const params = [];
@@ -26,26 +24,20 @@ const getUsers = async (req, res, next) => {
     query += ' ORDER BY created_at DESC LIMIT ? OFFSET ?';
     params.push(limitNum, offset);
 
-    // Use pool.query instead of pool.execute to avoid issues with LIMIT/OFFSET in prepared statements
     const [users] = await pool.query(query, params);
 
     // Get total count
     let countQuery = 'SELECT COUNT(*) as total FROM users WHERE 1=1';
     const countParams = [];
-    if (role) {
-      countQuery += ' AND role = ?';
-      countParams.push(role);
-    }
-    if (status) {
-      countQuery += ' AND status = ?';
-      countParams.push(status);
-    }
+    if (role) { countQuery += ' AND role = ?'; countParams.push(role); }
+    if (status) { countQuery += ' AND status = ?'; countParams.push(status); }
+    
     const [countResult] = await pool.query(countQuery, countParams);
 
     res.json({
       users,
       pagination: {
-        page: pageNum,
+        page: parseInt(page, 10),
         limit: limitNum,
         total: countResult[0].total,
         pages: Math.ceil(countResult[0].total / limitNum)
@@ -60,15 +52,12 @@ const getUsers = async (req, res, next) => {
 const getUserById = async (req, res, next) => {
   try {
     const { id } = req.params;
-
     const [users] = await pool.execute(
       'SELECT id, email, full_name, phone, role, status, created_at, updated_at FROM users WHERE id = ?',
       [id]
     );
 
-    if (users.length === 0) {
-      return res.status(404).json({ error: 'User not found.' });
-    }
+    if (users.length === 0) return res.status(404).json({ error: 'User not found.' });
 
     res.json({ user: users[0] });
   } catch (error) {
@@ -80,9 +69,7 @@ const getUserById = async (req, res, next) => {
 const updateProfile = async (req, res, next) => {
   try {
     const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
+    if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
 
     const { full_name, phone } = req.body;
     const userId = req.user.id;
@@ -92,10 +79,12 @@ const updateProfile = async (req, res, next) => {
       [full_name, phone || null, userId]
     );
 
-    const [users] = await pool.execute(
-      'SELECT id, email, full_name, phone, role, status, created_at, updated_at FROM users WHERE id = ?',
-      [userId]
-    );
+    const [users] = await pool.execute('SELECT * FROM users WHERE id = ?', [userId]);
+
+    // ✅ WEBSOCKET: Notify admin panel that a user updated their own profile
+    if (req.io) {
+        req.io.emit('user_updated', users[0]);
+    }
 
     res.json({ message: 'Profile updated successfully', user: users[0] });
   } catch (error) {
@@ -113,10 +102,12 @@ const updateUserStatus = async (req, res, next) => {
       return res.status(400).json({ error: 'Invalid status value.' });
     }
 
-    await pool.execute(
-      'UPDATE users SET status = ? WHERE id = ?',
-      [status, id]
-    );
+    await pool.execute('UPDATE users SET status = ? WHERE id = ?', [status, id]);
+
+    // ✅ WEBSOCKET: Notify all clients that this user's status changed
+    if (req.io) {
+        req.io.emit('user_status_changed', { id: parseInt(id), status });
+    }
 
     res.json({ message: 'User status updated successfully' });
   } catch (error) {
@@ -124,6 +115,27 @@ const updateUserStatus = async (req, res, next) => {
   }
 };
 
+// ✅ NEW: Delete User (Hard Delete)
+const deleteUser = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+
+        // Optional: Check if user exists first
+        const [user] = await pool.execute('SELECT id FROM users WHERE id = ?', [id]);
+        if (user.length === 0) return res.status(404).json({ error: 'User not found' });
+
+        await pool.execute('DELETE FROM users WHERE id = ?', [id]);
+
+        // ✅ WEBSOCKET: Notify all clients to remove this user from the list
+        if (req.io) {
+            req.io.emit('user_deleted', { id: parseInt(id) });
+        }
+
+        res.json({ message: 'User deleted successfully' });
+    } catch (error) {
+        next(error);
+    }
+};
 // Get user preferences
 const getUserPreferences = async (req, res, next) => {
   try {
@@ -192,6 +204,7 @@ module.exports = {
   getUserById,
   updateProfile,
   updateUserStatus,
+  deleteUser,
   getUserPreferences,
   updateUserPreferences,
   updateProfileValidation
