@@ -123,6 +123,20 @@ const createVerification = async (req, res, next) => {
         'UPDATE listings SET status = ? WHERE id = ?',
         ['verified', target_id]
       );
+
+      // ✅ WEBSOCKET FIX: Fetch the updated listing from the VIEW and emit it
+      // This ensures ListingSearch.jsx sees the "Verified" badge instantly
+      const [updatedListings] = await pool.query(
+        'SELECT * FROM v_searchable_listings WHERE id = ?',
+        [target_id]
+      );
+
+      if (updatedListings.length > 0 && req.io) {
+          const listingData = updatedListings[0];
+          try { listingData.features_json = JSON.parse(listingData.features_json); } catch(e) {}
+          
+          req.io.emit('listing_updated', listingData);
+      }
     }
 
     const [verifications] = await pool.execute(

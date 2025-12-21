@@ -111,10 +111,14 @@ const createRentalRequest = async (req, res, next) => {
         [listing_id, requester_user_id]
       );
 
-      res.status(201).json({
-        message: 'Rental request created successfully',
-        rental_request: requests[0]
-      });
+      if (req.io) {
+        req.io.emit('rental_request_created', requests[0]);
+    }
+
+    res.status(201).json({
+      message: 'Rental request created successfully',
+      rental_request: requests[0]
+    });
     } catch (procError) {
       // Handle errors from SIGNAL SQLSTATE in the procedure
       if (procError.sqlState === '45000') {
