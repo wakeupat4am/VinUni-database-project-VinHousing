@@ -53,7 +53,7 @@ const getRentalRequests = async (req, res, next) => {
     // 3. ✅ Fix: Use pool.query instead of pool.execute
     const [requests] = await pool.query(query, params);
 
-    res.json(requests);
+    res.json({ requests });
   } catch (error) {
     next(error);
   }
@@ -111,10 +111,14 @@ const createRentalRequest = async (req, res, next) => {
         [listing_id, requester_user_id]
       );
 
-      res.status(201).json({
-        message: 'Rental request created successfully',
-        rental_request: requests[0]
-      });
+      if (req.io) {
+        req.io.emit('rental_request_created', requests[0]);
+    }
+
+    res.status(201).json({
+      message: 'Rental request created successfully',
+      rental_request: requests[0]
+    });
     } catch (procError) {
       // Handle errors from SIGNAL SQLSTATE in the procedure
       if (procError.sqlState === '45000') {

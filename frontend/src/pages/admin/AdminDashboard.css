@@ -1,0 +1,230 @@
+/* src/pages/AdminDashboard.css */
+
+/* --- LAYOUT --- */
+.ad-root {
+  background-color: #f8fafc;
+  min-height: 100vh;
+  padding-bottom: 80px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  color: #1e293b;
+}
+
+.ad-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 40px 24px;
+}
+
+/* --- HEADER --- */
+.ad-header {
+  margin-bottom: 48px;
+  background: white;
+  padding: 32px;
+  border-radius: 20px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.ad-header-icon {
+  width: 64px;
+  height: 64px;
+  background: #f1f5f9;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #0f172a;
+}
+
+.ad-header-text h1 {
+  font-size: 28px;
+  font-weight: 700;
+  margin: 0 0 8px 0;
+  color: #0f172a;
+}
+
+.ad-header-text p {
+  font-size: 16px;
+  color: #64748b;
+  margin: 0;
+}
+
+/* --- STATS GRID --- */
+.ad-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 24px;
+  margin-bottom: 48px;
+}
+
+/* Stat Cards */
+.ad-stat-card {
+  position: relative;
+  border-radius: 20px;
+  padding: 32px;
+  color: white;
+  overflow: hidden;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s;
+}
+
+.ad-stat-card:hover {
+  transform: translateY(-4px);
+}
+
+/* Gradient Variants */
+.ad-stat-card.blue {
+  background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+}
+.ad-stat-card.orange {
+  background: linear-gradient(135deg, #f59e0b 0%, #b45309 100%);
+}
+.ad-stat-card.red {
+  background: linear-gradient(135deg, #ef4444 0%, #991b1b 100%);
+}
+
+/* Inner Content */
+.ad-stat-content {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.ad-stat-info h2 {
+  font-size: 42px;
+  font-weight: 800;
+  margin: 12px 0 0 0;
+  line-height: 1;
+}
+
+.ad-stat-info span {
+  font-size: 16px;
+  font-weight: 500;
+  opacity: 0.9;
+}
+
+.ad-stat-icon-wrapper {
+  background: rgba(255, 255, 255, 0.2);
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(4px);
+}
+
+/* Decorative Background Icon */
+.ad-stat-bg-icon {
+  position: absolute;
+  right: -20px;
+  bottom: -20px;
+  font-size: 140px !important;
+  opacity: 0.15;
+  transform: rotate(-15deg);
+  pointer-events: none;
+}
+
+/* --- ACTIONS SECTION --- */
+.ad-section-title {
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 24px;
+  color: #0f172a;
+}
+
+.ad-actions-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  gap: 24px;
+}
+
+.ad-action-card {
+  background: white;
+  border-radius: 20px;
+  padding: 32px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 100%;
+}
+
+.ad-action-card:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+}
+
+.ad-action-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.ad-action-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Specific Action Colors */
+.ad-action-card.verification .ad-action-icon {
+  background: #ecfdf5;
+  color: #059669;
+}
+.ad-action-card.users .ad-action-icon {
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+.ad-action-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+}
+
+.ad-action-desc {
+  color: #64748b;
+  font-size: 15px;
+  line-height: 1.6;
+  margin-bottom: 24px;
+}
+
+.ad-action-btn {
+  background: transparent;
+  border: none;
+  font-weight: 600;
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0;
+  cursor: pointer;
+}
+
+.ad-action-card.verification .ad-action-btn { color: #059669; }
+.ad-action-card.users .ad-action-btn { color: #2563eb; }
+
+/* RESPONSIVE */
+@media (max-width: 768px) {
+  .ad-header {
+    flex-direction: column;
+    text-align: center;
+  }
+  .ad-actions-grid {
+    grid-template-columns: 1fr;
+  }
+}

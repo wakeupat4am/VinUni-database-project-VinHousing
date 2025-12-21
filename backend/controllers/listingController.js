@@ -2,7 +2,6 @@ const pool = require('../config/database');
 const { body, validationResult } = require('express-validator');
 
 // Get all listings with filters
-// backend/controllers/listingController.js
 const getListings = async (req, res, next) => {
   try {
     const {
@@ -13,93 +12,46 @@ const getListings = async (req, res, next) => {
     const limitNum = parseInt(limit, 10);
     const offsetNum = (parseInt(page, 10) - 1) * limitNum;
 
-    // ✅ THE CHANGE: Select from the View 'v_searchable_listings" 
-    // instead of complex Joins
-    let query = `SELECT * FROM v_searchable_listings WHERE 1=1`;
+    // 1. Build Base Conditions
+    let baseSql = ' FROM v_searchable_listings WHERE 1=1'; 
     const params = [];
 
-    // --- FILTERS (Now much cleaner) ---
-    if (status) {
-      query += ' AND status = ?';
-      params.push(status);
-    }
-    
-    // Filter by Owner (for "My Listings" dashboard)
-    if (owner_id) {
-      query += ' AND owner_user_id = ?';
-      params.push(owner_id);
-    }
+    if (status) { baseSql += ' AND status = ?'; params.push(status); }
+    if (owner_id) { baseSql += ' AND owner_user_id = ?'; params.push(owner_id); }
+    if (min_price) { baseSql += ' AND price >= ?'; params.push(min_price); }
+    if (max_price) { baseSql += ' AND price <= ?'; params.push(max_price); }
 
-    if (min_price) {
-      query += ' AND price >= ?';
-      params.push(min_price);
-    }
+    // 2. Fetch Data (Paginated)
+    const dataQuery = `SELECT * ${baseSql} ORDER BY created_at DESC LIMIT ? OFFSET ?`;
+    const dataParams = [...params, limitNum, offsetNum];
+    const [listings] = await pool.query(dataQuery, dataParams);
 
-    if (max_price) {
-      query += ' AND price <= ?';
-      params.push(max_price);
-    }
+    // 3. Fetch Total Count
+    const countQuery = `SELECT COUNT(*) as total ${baseSql}`;
+    const [countResult] = await pool.query(countQuery, params);
+    const total = countResult[0].total;
 
-    // --- SORTING & PAGINATION ---
-    query += ' ORDER BY created_at DESC LIMIT ? OFFSET ?';
-    params.push(limitNum, offsetNum);
-
-    const [listings] = await pool.query(query, params);
-
-    // Parse JSON features (same as before)
-    listings.forEach(l => {
-        try {
-            l.features_json = typeof l.features_json === 'string' 
-                ? JSON.parse(l.features_json) : l.features_json || {};
-        } catch(e) { l.features_json = {}; }
+    res.json({ 
+        listings, 
+        total,
+        pagination: {
+            page: parseInt(page, 10),
+            limit: limitNum,
+            total: total,
+            pages: Math.ceil(total / limitNum)
+        }
     });
-
-    res.json({ listings });
   } catch (error) {
     next(error);
   }
 };
 
 // Get listing by ID
-// const getListingById = async (req, res, next) => {
-//   try {
-//     const { id } = req.params;
-
-//     const [listings] = await pool.execute(
-//       `SELECT l.*, 
-//               u.full_name as owner_name,
-//               p.address as property_address,
-//               r.room_name,
-//               lf.features_json
-//        FROM listings l
-//        LEFT JOIN users u ON l.owner_user_id = u.id
-//        LEFT JOIN properties p ON l.property_id = p.id
-//        LEFT JOIN rooms r ON l.room_id = r.id
-//        LEFT JOIN listing_features lf ON l.id = lf.listing_id
-//        WHERE l.id = ?`,
-//       [id]
-//     );
-
-//     if (listings.length === 0) {
-//       return res.status(404).json({ error: 'Listing not found.' });
-//     }
-
-//     const listing = listings[0];
-//     if (listing.features_json) {
-//       listing.features_json = JSON.parse(listing.features_json);
-//     }
-
-//     res.json({ listing });
-//   } catch (error) {
-//     next(error);
-//   }
-// };
-
 const getListingById = async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    // ✅ Change: Query the VIEW instead of the raw table
+    // Query the VIEW to get joined data (address, features, etc.)
     const [listings] = await pool.query(
       `SELECT * FROM v_searchable_listings WHERE id = ?`,
       [id]
@@ -111,7 +63,7 @@ const getListingById = async (req, res, next) => {
 
     const listing = listings[0];
 
-    // Parse features JSON if it exists
+    // Parse features JSON safely
     try {
         if (typeof listing.features_json === 'string') {
             listing.features_json = JSON.parse(listing.features_json);
@@ -135,50 +87,36 @@ const createListing = async (req, res, next) => {
     const { property_id, room_id, price, deposit, available_from, features_json } = req.body;
     const owner_user_id = req.user.id;
 
-    // Validate that exactly one of property_id or room_id is provided
+    // Validate inputs
     if (!property_id && !room_id) {
       return res.status(400).json({ error: 'Either property_id or room_id must be provided.' });
     }
 
-    //strict mode: prevent both being provided
-    // if (property_id && room_id) {
-    //   return res.status(400).json({ error: 'Cannot specify both property_id and room_id.' });
-    // }
-
-    // Verify ownership if room_id is provided
-    if (room_id) {
-      const [rooms] = await pool.execute(
-        'SELECT p.owner_user_id FROM rooms r JOIN properties p ON r.property_id = p.id WHERE r.id = ?',
-        [room_id]
-      );
-
-      if (rooms.length === 0) {
-        return res.status(404).json({ error: 'Room not found.' });
-      }
-
-      if (rooms[0].owner_user_id !== owner_user_id && req.user.role !== 'admin') {
-        return res.status(403).json({ error: 'You do not own this room.' });
-      }
-    }
-
-    // Verify ownership if property_id is provided
+    // Verify ownership (Property)
     if (property_id) {
       const [properties] = await pool.execute(
         'SELECT owner_user_id FROM properties WHERE id = ?',
         [property_id]
       );
-
-      if (properties.length === 0) {
-        return res.status(404).json({ error: 'Property not found.' });
-      }
-
+      if (properties.length === 0) return res.status(404).json({ error: 'Property not found.' });
       if (properties[0].owner_user_id !== owner_user_id && req.user.role !== 'admin') {
         return res.status(403).json({ error: 'You do not own this property.' });
       }
     }
-    
 
-        // 1. Check for EXACT duplicates (Same Room or Same Whole House)
+    // Verify ownership (Room)
+    if (room_id) {
+      const [rooms] = await pool.execute(
+        'SELECT p.owner_user_id FROM rooms r JOIN properties p ON r.property_id = p.id WHERE r.id = ?',
+        [room_id]
+      );
+      if (rooms.length === 0) return res.status(404).json({ error: 'Room not found.' });
+      if (rooms[0].owner_user_id !== owner_user_id && req.user.role !== 'admin') {
+        return res.status(403).json({ error: 'You do not own this room.' });
+      }
+    }
+    
+    // Check for Duplicates
     const [existing] = await pool.query(
       `SELECT id FROM listings 
       WHERE property_id = ? 
@@ -191,30 +129,13 @@ const createListing = async (req, res, next) => {
       return res.status(400).json({ error: 'An active listing already exists for this unit.' });
     }
 
-    // 2. Check for CONFLICTS (Whole House vs Room)
-    if (room_id) {
-      // If listing a Room, fail if "Whole House" is already listed
-      const [houseConflict] = await pool.query(
-        `SELECT id FROM listings WHERE property_id = ? AND room_id IS NULL AND status IN ('verified', 'pending_verification')`,
-        [property_id]
-      );
-      if (houseConflict.length > 0) return res.status(400).json({ error: 'Cannot list room: The whole property is already listed.' });
-    } else {
-      // If listing Whole House, fail if ANY Room is already listed
-      const [roomConflict] = await pool.query(
-        `SELECT id FROM listings WHERE property_id = ? AND room_id IS NOT NULL AND status IN ('verified', 'pending_verification')`,
-        [property_id]
-      );
-      if (roomConflict.length > 0) return res.status(400).json({ error: 'Cannot list whole property: Individual rooms are currently listed.' });
-    }
-
-
+    // Insert the Listing
     const [result] = await pool.execute(
       'INSERT INTO listings (owner_user_id, property_id, room_id, price, deposit, available_from, status) VALUES (?, ?, ?, ?, ?, ?, ?)',
       [owner_user_id, property_id, room_id || null, price, deposit || 0, available_from || null, 'pending_verification']
     );
 
-    // Create listing features if provided
+    // Insert Features
     if (features_json) {
       await pool.execute(
         'INSERT INTO listing_features (listing_id, features_json) VALUES (?, ?)',
@@ -222,12 +143,20 @@ const createListing = async (req, res, next) => {
       );
     }
 
-    const [listings] = await pool.execute(
-      'SELECT * FROM listings WHERE id = ?',
+    // ✅ WEBSOCKET UPDATE: Fetch the FULL view data to broadcast
+    const [listings] = await pool.query(
+      'SELECT * FROM v_searchable_listings WHERE id = ?',
       [result.insertId]
     );
+    const newListing = listings[0];
+    try { newListing.features_json = JSON.parse(newListing.features_json); } catch(e) {}
 
-    res.status(201).json({ message: 'Listing created successfully', listing: listings[0] });
+    // ⚡ Broadcast "New Listing" to all connected clients
+    if (req.io) {
+        req.io.emit('listing_created', newListing);
+    }
+
+    res.status(201).json({ message: 'Listing created successfully', listing: newListing });
   } catch (error) {
     next(error);
   }
@@ -240,74 +169,49 @@ const updateListing = async (req, res, next) => {
     const { price, deposit, available_from, status, features_json } = req.body;
 
     // Check ownership
-    const [listings] = await pool.execute(
-      'SELECT owner_user_id FROM listings WHERE id = ?',
-      [id]
-    );
-
-    if (listings.length === 0) {
-      return res.status(404).json({ error: 'Listing not found.' });
-    }
-
+    const [listings] = await pool.execute('SELECT owner_user_id FROM listings WHERE id = ?', [id]);
+    if (listings.length === 0) return res.status(404).json({ error: 'Listing not found.' });
     if (listings[0].owner_user_id !== req.user.id && req.user.role !== 'admin') {
       return res.status(403).json({ error: 'You do not have permission to update this listing.' });
     }
 
-    // Build update query dynamically
+    // Dynamic SQL Update
     const updates = [];
     const params = [];
-
-    if (price !== undefined) {
-      updates.push('price = ?');
-      params.push(price);
-    }
-    if (deposit !== undefined) {
-      updates.push('deposit = ?');
-      params.push(deposit);
-    }
-    if (available_from !== undefined) {
-      updates.push('available_from = ?');
-      params.push(available_from);
-    }
-    if (status !== undefined) {
-      updates.push('status = ?');
-      params.push(status);
-    }
+    if (price !== undefined) { updates.push('price = ?'); params.push(price); }
+    if (deposit !== undefined) { updates.push('deposit = ?'); params.push(deposit); }
+    if (available_from !== undefined) { updates.push('available_from = ?'); params.push(available_from); }
+    if (status !== undefined) { updates.push('status = ?'); params.push(status); }
 
     if (updates.length > 0) {
       params.push(id);
-      await pool.execute(
-        `UPDATE listings SET ${updates.join(', ')} WHERE id = ?`,
-        params
-      );
+      await pool.execute(`UPDATE listings SET ${updates.join(', ')} WHERE id = ?`, params);
     }
 
-    // Update features if provided
+    // Update Features
     if (features_json !== undefined) {
-      const [existing] = await pool.execute(
-        'SELECT listing_id FROM listing_features WHERE listing_id = ?',
-        [id]
-      );
-
+      const [existing] = await pool.execute('SELECT listing_id FROM listing_features WHERE listing_id = ?', [id]);
       if (existing.length === 0) {
-        await pool.execute(
-          'INSERT INTO listing_features (listing_id, features_json) VALUES (?, ?)',
-          [id, JSON.stringify(features_json)]
-        );
+        await pool.execute('INSERT INTO listing_features (listing_id, features_json) VALUES (?, ?)', [id, JSON.stringify(features_json)]);
       } else {
-        await pool.execute(
-          'UPDATE listing_features SET features_json = ? WHERE listing_id = ?',
-          [JSON.stringify(features_json), id]
-        );
+        await pool.execute('UPDATE listing_features SET features_json = ? WHERE listing_id = ?', [JSON.stringify(features_json), id]);
       }
     }
 
-    const [updated] = await pool.execute(
-      'SELECT * FROM listings WHERE id = ?',
+    // ✅ WEBSOCKET UPDATE: Fetch the FULL view data again
+    const [updated] = await pool.query(
+      'SELECT * FROM v_searchable_listings WHERE id = ?',
       [id]
     );
+    const updatedListing = updated[0];
+    try { updatedListing.features_json = JSON.parse(updatedListing.features_json); } catch(e) {}
 
-    res.json({ message: 'Listing updated successfully', listing: updated[0] });
+    // ⚡ Broadcast "Listing Updated" (e.g., Status changed to 'Verified')
+    if (req.io) {
+        req.io.emit('listing_updated', updatedListing);
+    }
+
+    res.json({ message: 'Listing updated successfully', listing: updatedListing });
   } catch (error) {
     next(error);
   }
@@ -317,22 +221,18 @@ const updateListing = async (req, res, next) => {
 const deleteListing = async (req, res, next) => {
   try {
     const { id } = req.params;
-
-    // Check ownership
-    const [listings] = await pool.execute(
-      'SELECT owner_user_id FROM listings WHERE id = ?',
-      [id]
-    );
-
-    if (listings.length === 0) {
-      return res.status(404).json({ error: 'Listing not found.' });
-    }
-
+    const [listings] = await pool.execute('SELECT owner_user_id FROM listings WHERE id = ?', [id]);
+    if (listings.length === 0) return res.status(404).json({ error: 'Listing not found.' });
     if (listings[0].owner_user_id !== req.user.id && req.user.role !== 'admin') {
       return res.status(403).json({ error: 'You do not have permission to delete this listing.' });
     }
 
     await pool.execute('DELETE FROM listings WHERE id = ?', [id]);
+    
+    // Optional: Emit delete event if you want cards to disappear instantly
+    if (req.io) {
+        req.io.emit('listing_deleted', { id: parseInt(id) });
+    }
 
     res.json({ message: 'Listing deleted successfully' });
   } catch (error) {
@@ -358,6 +258,3 @@ module.exports = {
   deleteListing,
   createListingValidation
 };
-
-
-

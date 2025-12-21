@@ -1,5 +1,7 @@
 const express = require('express');
 const cors = require('cors');
+const http = require('http'); // 1. Import HTTP
+const { Server } = require('socket.io'); // 2. Import Socket.io
 require('dotenv').config();
 
 // Import routes
@@ -18,18 +20,34 @@ const verificationRoutes = require('./routes/verifications');
 const errorHandler = require('./middleware/errorHandler');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 5000; // Recommendation: Use 5000 for backend to avoid conflict with React (3000)
+
+// 3. Create HTTP Server
+const server = http.createServer(app);
+
+// 4. Initialize Socket.io
+const io = new Server(server, {
+  cors: {
+    origin: ["http://localhost:3000"], // Allow your React Frontend
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    credentials: true
+  }
+});
 
 // Middleware
-// app.use(cors({
-//   origin: process.env.CORS_ORIGIN || 'http://localhost:3001',
-//   credentials: true
-// }));
-
-app.use(cors());
+app.use(cors({
+  origin: 'http://localhost:3000',
+  credentials: true
+}));
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// 5. Attach 'io' to every request so controllers can use it
+app.use((req, res, next) => {
+  req.io = io;
+  next();
+});
 
 // Request logging middleware
 app.use((req, res, next) => {
@@ -62,12 +80,20 @@ app.use((req, res) => {
 // Error handler (must be last)
 app.use(errorHandler);
 
-// Start server
-app.listen(PORT, () => {
+// Socket.io Connection Event (Optional: for debugging)
+io.on('connection', (socket) => {
+  console.log('⚡ A user connected:', socket.id);
+  
+  socket.on('disconnect', () => {
+    console.log('User disconnected:', socket.id);
+  });
+});
+
+// 6. Start SERVER (not app)
+server.listen(PORT, () => {
   console.log(`🚀 Server is running on port ${PORT}`);
   console.log(`📡 API endpoints available at http://localhost:${PORT}/api`);
-  console.log(`🏥 Health check: http://localhost:${PORT}/health`);
+  console.log(`⚡ Socket.io enabled`);
 });
 
 module.exports = app;
-

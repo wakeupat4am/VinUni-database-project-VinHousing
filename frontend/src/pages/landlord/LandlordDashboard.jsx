@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { listingService, requestService, authService, issueService } from '../../services/api';
 import Navbar from '../../components/Navbar';
 import './LandlordDashboard.css'; // Import the custom styles
-
+import { socket } from '../../services/socket';
 export default function LandlordDashboard() {
   const navigate = useNavigate();
   const [stats, setStats] = useState({ listings: 0, requests: 0, contracts: 0 });
@@ -25,7 +25,7 @@ export default function LandlordDashboard() {
         ]);
 
         const allListings = listingsRes.data.listings || [];
-        const allRequests = requestsRes.data || []; 
+        const allRequests = requestsRes.data.requests || [];
         const allIssues = issuesRes.data.issues || [];
 
         const pendingRequests = allRequests.filter(r => r.status === 'pending');
@@ -51,6 +51,23 @@ export default function LandlordDashboard() {
 
     fetchData();
   }, [user.id]);
+  useEffect(() => {
+    socket.on('rental_request_created', (newRequest) => {
+        // Optional: Check if this request belongs to me (by checking if I own the listing)
+        // For the demo, simply adding it is fine.
+        console.log("⚡ New Rental Request:", newRequest);
+        
+        // 1. Update Recent Requests Table (Add to top)
+        setRecentRequests(prev => [newRequest, ...prev].slice(0, 5));
+
+        // 2. Update Stats Counter
+        setStats(prev => ({ ...prev, requests: prev.requests + 1 }));
+    });
+
+    return () => {
+        socket.off('rental_request_created');
+    };
+  }, []);
 
   const handleAcceptRequest = async (requestId) => {
     if(!window.confirm("Accept this rental request?")) return;

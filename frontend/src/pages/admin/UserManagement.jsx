@@ -6,12 +6,16 @@ import {
 } from '@mui/material';
 import Navbar from '../../components/Navbar';
 import { userService } from '../../services/api';
+// 1. Import Socket Connection
+import { socket } from '../../services/socket'; 
+
 import SearchIcon from '@mui/icons-material/Search';
 import BlockIcon from '@mui/icons-material/Block';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import PersonIcon from '@mui/icons-material/Person';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
+import DeleteIcon from '@mui/icons-material/Delete'; // Import Delete Icon
 
 export default function UserManagement() {
     const [users, setUsers] = useState([]);
@@ -26,23 +30,76 @@ export default function UserManagement() {
             setUsers(Array.isArray(usersData) ? usersData : []);
         } catch (error) {
             console.error("Error fetching users", error);
-            setUsers([]);
+            // Don't clear users on error to avoid flickering if network blips
         } finally {
             setLoading(false);
         }
     };
 
     useEffect(() => {
+        // 1. Initial Load
         fetchUsers();
+
+        // 2. Real-Time Listeners
+        // A. User Deleted
+        socket.on('user_deleted', (data) => {
+            console.log("⚡ Real-time: User deleted", data.id);
+            setUsers(prev => prev.filter(u => u.id !== parseInt(data.id)));
+        });
+
+        // B. User Status Changed (Active/Suspended)
+        socket.on('user_status_changed', (data) => {
+            console.log("⚡ Real-time: Status changed", data);
+            setUsers(prev => prev.map(u => 
+                u.id === parseInt(data.id) ? { ...u, status: data.status } : u
+            ));
+        });
+
+        // C. User Profile Updated
+        socket.on('user_updated', (updatedUser) => {
+            console.log("⚡ Real-time: User updated", updatedUser);
+            setUsers(prev => prev.map(u => 
+                u.id === updatedUser.id ? { ...u, ...updatedUser } : u
+            ));
+        });
+
+        // D. New User Registered (Optional bonus)
+        socket.on('user_created', (newUser) => {
+             setUsers(prev => [newUser, ...prev]);
+        });
+
+        // 3. Cleanup Listeners
+        return () => {
+            socket.off('user_deleted');
+            socket.off('user_status_changed');
+            socket.off('user_updated');
+            socket.off('user_created');
+        };
     }, []);
 
     const handleStatusChange = async (userId, newStatus) => {
-        if (!window.confirm(`Are you sure you want to set this user to ${newStatus}?`)) return;
+        // No confirmation needed for fast admin actions (or keep it if you prefer)
         try {
             await userService.updateStatus(userId, newStatus);
-            fetchUsers();
+            // No need to call fetchUsers()! The socket will update the UI automatically.
         } catch (error) {
             alert("Error updating user status");
+        }
+    };
+
+    // New: Handle Delete
+    const handleDelete = async (userId) => {
+        if (!window.confirm("Are you sure you want to permanently delete this user?")) return;
+        try {
+            // Check if userService.delete exists in api.js, if not, verify api.js configuration
+            if (userService.delete) {
+                 await userService.delete(userId); 
+            } else {
+                 // Fallback if the method name is different in your api.js
+                 console.error("Delete method missing in userService");
+            }
+        } catch (error) {
+            alert("Error deleting user");
         }
     };
 
@@ -80,6 +137,11 @@ export default function UserManagement() {
                         <Typography variant="body1" color="text.secondary">
                             Manage system users, roles, and account statuses
                         </Typography>
+                        {/* Status Indicator */}
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
+                            <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: 'success.main', boxShadow: '0 0 5px lime' }} />
+                            <Typography variant="caption" color="success.main">Real-time updates active</Typography>
+                        </Box>
                     </Box>
                     <Button
                         variant="outlined"
@@ -127,12 +189,17 @@ export default function UserManagement() {
                                 filteredUsers.map((user) => (
                                     <TableRow
                                         key={user.id}
-                                        sx={{ '&:hover': { bgcolor: 'action.hover' }, transition: 'background-color 0.2s' }}
+                                        sx={{ 
+                                            '&:hover': { bgcolor: 'action.hover' }, 
+                                            transition: 'background-color 0.2s',
+                                            // Highlight deleted users if they stick around (optional)
+                                            opacity: user.status === 'deleted' ? 0.5 : 1 
+                                        }}
                                     >
                                         <TableCell>
                                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                                                 <Avatar sx={{ bgcolor: user.role === 'admin' ? 'secondary.main' : 'primary.main' }}>
-                                                    {user.full_name.charAt(0).toUpperCase()}
+                                                    {user.full_name ? user.full_name.charAt(0).toUpperCase() : '?'}
                                                 </Avatar>
                                                 <Box>
                                                     <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
@@ -147,7 +214,7 @@ export default function UserManagement() {
                                         <TableCell>
                                             <Chip
                                                 icon={user.role === 'admin' ? <AdminPanelSettingsIcon /> : <PersonIcon />}
-                                                label={user.role.charAt(0).toUpperCase() + user.role.slice(1)}
+                                                label={user.role ? (user.role.charAt(0).toUpperCase() + user.role.slice(1)) : 'User'}
                                                 color={getRoleColor(user.role)}
                                                 size="small"
                                                 variant="outlined"
@@ -156,7 +223,7 @@ export default function UserManagement() {
                                         </TableCell>
                                         <TableCell>
                                             <Chip
-                                                label={user.status.toUpperCase()}
+                                                label={user.status ? user.status.toUpperCase() : 'UNKNOWN'}
                                                 color={getStatusColor(user.status)}
                                                 size="small"
                                                 sx={{ fontWeight: 'bold', borderRadius: 1 }}
@@ -169,14 +236,26 @@ export default function UserManagement() {
                                         </TableCell>
                                         <TableCell align="right">
                                             {user.role !== 'admin' && (
-                                                <Tooltip title={user.status === 'active' ? "Suspend User" : "Activate User"}>
-                                                    <IconButton
-                                                        color={user.status === 'active' ? 'error' : 'success'}
-                                                        onClick={() => handleStatusChange(user.id, user.status === 'active' ? 'suspended' : 'active')}
-                                                    >
-                                                        {user.status === 'active' ? <BlockIcon /> : <CheckCircleOutlineIcon />}
-                                                    </IconButton>
-                                                </Tooltip>
+                                                <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
+                                                    <Tooltip title={user.status === 'active' ? "Suspend User" : "Activate User"}>
+                                                        <IconButton
+                                                            color={user.status === 'active' ? 'warning' : 'success'}
+                                                            onClick={() => handleStatusChange(user.id, user.status === 'active' ? 'suspended' : 'active')}
+                                                        >
+                                                            {user.status === 'active' ? <BlockIcon /> : <CheckCircleOutlineIcon />}
+                                                        </IconButton>
+                                                    </Tooltip>
+                                                    
+                                                    {/* Delete Button */}
+                                                    <Tooltip title="Delete Permanently">
+                                                        <IconButton 
+                                                            color="error"
+                                                            onClick={() => handleDelete(user.id)}
+                                                        >
+                                                            <DeleteIcon />
+                                                        </IconButton>
+                                                    </Tooltip>
+                                                </Box>
                                             )}
                                         </TableCell>
                                     </TableRow>
