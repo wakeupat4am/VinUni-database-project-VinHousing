@@ -1,6 +1,6 @@
 # Off-Campus Housing Management System (Verified Housing for Students & Workers)
 - Nguyen Van Duy Anh
-- Tran Anh Chuong
+- Tran Anh Chuong (Chun)
 - Duong Hien Chi Kien
 
 ## 1) Brief Description (Problem + Solution)
