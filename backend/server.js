@@ -16,6 +16,7 @@ const issueRoutes = require('./routes/issues');
 const reviewRoutes = require('./routes/reviews');
 const organizationRoutes = require('./routes/organizations');
 const verificationRoutes = require('./routes/verifications');
+const analyticsRoutes = require('./routes/analytics');
 
 // Import error handler
 const errorHandler = require('./middleware/errorHandler');
@@ -75,6 +76,7 @@ app.use('/api/issues', issueRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/organizations', organizationRoutes);
 app.use('/api/verifications', verificationRoutes);
+app.use('/api/analytics', analyticsRoutes);
 
 // 404 handler
 app.use((req, res) => {

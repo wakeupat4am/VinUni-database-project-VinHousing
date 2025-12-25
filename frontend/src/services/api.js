@@ -3,6 +3,7 @@ import axios from 'axios';
 
 // ⚠️ IMPORTANT: If you moved your backend to port 5000, change this URL to 'http://localhost:5000/api'
 const BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+// REACT_APP_API_URL is the environment variable on production
 
 const api = axios.create({
   baseURL: `${BASE_URL}/api`,
@@ -122,6 +123,14 @@ export const organizationService = {
   getAll: () => api.get('/organizations'),
   create: (data) => api.post('/organizations', data),
   updateAffiliation: (userId, orgId, status) => api.put(`/organizations/affiliations/${userId}/${orgId}`, { status }),
+};
+
+// src/services/api.js
+
+export const analyticsService = {
+  getUserGrowth: () => api.get('/analytics/users'),
+  getRevenue: () => api.get('/analytics/revenue'),
+  getIssueStats: () => api.get('/analytics/issues'),
 };
 
 export default api;
