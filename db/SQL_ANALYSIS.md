@@ -284,3 +284,4 @@ INSERT INTO users (email, password_hash, full_name, role, status) VALUES
 5. **Document procedures/triggers** - Explain what each does
 
 
+
