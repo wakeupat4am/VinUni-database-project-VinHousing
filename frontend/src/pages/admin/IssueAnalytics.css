@@ -1,0 +1,275 @@
+/* IssueAnalytics.css */
+
+:root {
+  --ia-bg-color: #f8fafc;       /* Slate-50 */
+  --ia-card-bg: #ffffff;        /* White */
+  --ia-text-primary: #0f172a;   /* Slate-900 */
+  --ia-text-secondary: #64748b; /* Slate-500 */
+  --ia-border: #e2e8f0;         /* Slate-200 */
+  --ia-primary: #6366f1;        /* Indigo-500 */
+  --ia-radius: 16px;
+  --ia-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+}
+
+.ia-root {
+  background-color: var(--ia-bg-color);
+  min-height: 100vh;
+  padding-bottom: 60px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  color: var(--ia-text-primary);
+}
+
+/* --- Layout Grid System --- */
+/* This container controls the max-width and centering */
+.ia-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+/* --- Header --- */
+.ia-header {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 32px;
+  padding-top: 24px;
+}
+
+@media (min-width: 768px) {
+  .ia-header {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: flex-end;
+  }
+}
+
+.ia-title {
+  font-size: 1.75rem;
+  font-weight: 800;
+  margin: 0;
+  letter-spacing: -0.025em;
+  color: var(--ia-text-primary);
+}
+
+.ia-subtitle {
+  color: var(--ia-text-secondary);
+  margin-top: 8px;
+  font-size: 0.95rem;
+  margin-bottom: 0;
+}
+
+/* --- 1. Stats Grid (Auto-Layout) --- */
+.ia-stats-grid {
+  display: grid;
+  /* Magic line: Creates columns automatically based on min-width */
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 20px;
+  margin-bottom: 24px;
+}
+
+.ia-stat-card {
+  background: var(--ia-card-bg);
+  border-radius: var(--ia-radius);
+  padding: 24px;
+  border: 1px solid var(--ia-border);
+  box-shadow: var(--ia-shadow);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.ia-stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+
+.ia-stat-icon-wrapper {
+  width: 56px;
+  height: 56px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.6rem;
+  flex-shrink: 0;
+}
+
+/* Icon Backgrounds */
+.ia-blue { background: #eff6ff; color: #3b82f6; }
+.ia-purple { background: #faf5ff; color: #a855f7; }
+.ia-red { background: #fef2f2; color: #ef4444; }
+.ia-green { background: #f0fdf4; color: #22c55e; }
+
+.ia-stat-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.ia-stat-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--ia-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.ia-stat-number {
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: var(--ia-text-primary);
+  line-height: 1.1;
+  margin-top: 4px;
+}
+
+/* --- 2. Charts Layout (The Fix for Mismatched Heights) --- */
+.ia-charts-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 24px;
+  margin-bottom: 24px;
+}
+
+@media (min-width: 1024px) {
+  .ia-charts-grid {
+    /* 1/3 for Pie, 2/3 for Bar */
+    grid-template-columns: 3.5fr 8.5fr; 
+    align-items: stretch; /* CRITICAL: Forces equal height */
+  }
+}
+
+.ia-card {
+  background: var(--ia-card-bg);
+  border-radius: var(--ia-radius);
+  border: 1px solid var(--ia-border);
+  box-shadow: var(--ia-shadow);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  height: 100%; /* Fills the grid cell */
+}
+
+.ia-card-header {
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--ia-border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.ia-card-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--ia-text-primary);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ia-chart-body {
+  flex-grow: 1;
+  padding: 20px;
+  min-height: 380px; /* Enforce a good height */
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+/* --- 3. Table Section --- */
+.ia-table-wrapper {
+  overflow-x: auto;
+}
+
+.ia-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.ia-table th {
+  background: #f1f5f9;
+  text-align: left;
+  padding: 16px 24px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--ia-text-secondary);
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid var(--ia-border);
+}
+
+.ia-table td {
+  padding: 16px 24px;
+  border-bottom: 1px solid #f1f5f9;
+  color: var(--ia-text-primary);
+  font-size: 0.9rem;
+  vertical-align: middle;
+}
+
+.ia-table tr:last-child td {
+  border-bottom: none;
+}
+
+.ia-table tr:hover td {
+  background-color: #f8fafc;
+}
+
+/* Table Specifics */
+.ia-id-cell {
+  font-family: 'Monaco', 'Consolas', monospace;
+  font-weight: 600;
+  color: var(--ia-text-secondary) !important;
+}
+
+.ia-title-cell {
+  font-weight: 600;
+}
+
+.ia-desc-cell {
+  max-width: 300px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--ia-text-secondary) !important;
+}
+
+/* Badge System */
+.ia-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  line-height: 1;
+}
+
+.ia-badge.critical { background: #fef2f2; color: #ef4444; border: 1px solid #fecaca; }
+.ia-badge.high { background: #fffbeb; color: #d97706; border: 1px solid #fde68a; }
+.ia-badge.medium { background: #eff6ff; color: #3b82f6; border: 1px solid #bfdbfe; }
+.ia-badge.low { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; }
+
+.ia-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  text-transform: capitalize;
+}
+
+.ia-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.ia-custom-tooltip {
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid var(--ia-border);
+  box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+  padding: 12px 16px;
+  border-radius: 8px;
+}
